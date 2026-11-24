@@ -99,6 +99,14 @@ Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can b
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
 
+## Supabase TypeScript types
+
+After applying local migrations, regenerate the types used by the Supabase clients and include the generated file with your schema changes. Run this from the repo root while local Supabase is running:
+
+```bash
+supabase gen types typescript --schema public > lib/supabase/database.types.ts
+```
+
 ## Feedback and issues
 
 Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).

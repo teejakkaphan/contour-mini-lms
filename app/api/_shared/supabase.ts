@@ -1,10 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
-import { SupabaseClient } from "@supabase/supabase-js";
 
 type SessionClient = Awaited<ReturnType<typeof createClient>>;
-type PermissionRow = { permission: string };
 
-export async function getApiSession(): Promise<{supabase: SupabaseClient, userId: string} | null> {
+export async function getApiSession() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   const userId = data?.claims?.sub;
@@ -12,12 +10,12 @@ export async function getApiSession(): Promise<{supabase: SupabaseClient, userId
   return !error && userId ? { supabase, userId } : null;
 }
 
-export async function getEffectivePermissions(supabase: SessionClient): Promise<string[] | null> {
+export async function getEffectivePermissions(supabase: SessionClient) {
   const { data, error } = await supabase
     .from("current_user_permissions")
     .select("permission")
     .order("permission");
 
   if (error) return null;
-  return data.map(({ permission }: PermissionRow) => permission);
+  return data.map(({ permission }) => permission);
 }
