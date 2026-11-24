@@ -4,9 +4,9 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
+    <main className="min-h-screen w-full items-center">
+      <div className="flex-1 w-full grid grid-cols-7 items-center py-8">
+        <div className="col-span-full lg:col-start-2 lg:col-span-5 px-6">
           {children}
         </div>
       </div>

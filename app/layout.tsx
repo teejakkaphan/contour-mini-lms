@@ -6,6 +6,7 @@ import { hasEnvVars } from "@/lib/utils";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { Suspense } from "react";
 import { AuthButton } from "@/components/auth-button";
+import Link from "next/link";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -37,8 +38,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-            <div className="w-full max-w-5xl flex justify-end items-center p-3 px-5 text-sm">
+          <nav className="w-full grid grid-cols-7 border-b border-b-foreground/10 h-16">
+            <div className="w-full flex justify-end items-center gap-3 col-span-full lg:col-start-2 lg:col-span-5 p-3 px-6 text-sm">
+              <Link href="/">Home</Link>
               {!hasEnvVars ? (
                 <EnvVarWarning />
               ) : (
