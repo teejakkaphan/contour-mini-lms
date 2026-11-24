@@ -1,7 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
+import { postSignup } from "@/lib/api/auth";
+import { parseSignupInput } from "@/lib/auth/validation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,35 +21,34 @@ export function SignUpForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const signup = parseSignupInput({
+    first_name: firstName,
+    last_name: lastName,
+    email,
+    password,
+  });
+  const passwordsMatch = password === repeatPassword;
+  const canSubmit = signup.ok && passwordsMatch && !isLoading;
 
   const handleSignUp = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const supabase = createClient();
-    setIsLoading(true);
+    if (isLoading || !signup.ok || !passwordsMatch) return;
     setError(null);
 
-    if (password !== repeatPassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
+    setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-      if (error) throw error;
-      router.push("/auth/sign-up-success");
+      const { requiresEmailConfirmation } = await postSignup(signup.input);
+      router.push(
+        requiresEmailConfirmation ? "/auth/sign-up-success" : "/dashboard",
+      );
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -65,12 +65,33 @@ export function SignUpForm({
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignUp}>
-            <div className="flex flex-col gap-6">
+            <fieldset disabled={isLoading} className="flex flex-col gap-6">
+              <div className="grid gap-2">
+                <Label htmlFor="first-name">First name</Label>
+                <Input
+                  id="first-name"
+                  autoComplete="given-name"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="last-name">Last name</Label>
+                <Input
+                  id="last-name"
+                  autoComplete="family-name"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
+                  autoComplete="email"
                   placeholder="m@example.com"
                   required
                   value={email}
@@ -84,28 +105,48 @@ export function SignUpForm({
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
+                  minLength={6}
+                  aria-describedby="signup-password-hint"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <p
+                  id="signup-password-hint"
+                  className="text-sm text-muted-foreground"
+                >
+                  Use at least 6 characters.
+                </p>
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
-                  <Label htmlFor="repeat-password">Repeat Password</Label>
+                  <Label htmlFor="repeat-password">Confirm password</Label>
                 </div>
                 <Input
                   id="repeat-password"
                   type="password"
+                  autoComplete="new-password"
+                  minLength={6}
                   required
                   value={repeatPassword}
                   onChange={(e) => setRepeatPassword(e.target.value)}
                 />
               </div>
-              {error && <p className="text-sm text-red-500">{error}</p>}
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              {error && (
+                <p role="alert" className="text-sm text-destructive">
+                  {error}
+                </p>
+              )}
+              {repeatPassword && !passwordsMatch && (
+                <p className="text-sm text-destructive">
+                  Passwords do not match.
+                </p>
+              )}
+              <Button type="submit" className="w-full" disabled={!canSubmit}>
                 {isLoading ? "Creating an account..." : "Sign up"}
               </Button>
-            </div>
+            </fieldset>
             <div className="mt-4 text-center text-sm">
               Already have an account?{" "}
               <Link href="/auth/login" className="underline underline-offset-4">
