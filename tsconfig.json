@@ -28,6 +28,7 @@
     "**/*.ts",
     "**/*.tsx",
     "**/*.test.mts",
+    "vitest.config.mts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
