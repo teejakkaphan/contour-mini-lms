@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import {
-  type Consultation,
+  type ConsultationListItem,
   ConsultationApiError,
   getConsultations,
 } from "@/lib/api/consultations";
@@ -12,7 +13,7 @@ type ConsultationList =
   | { state: "loading" }
   | { state: "signed-out" }
   | { state: "error" }
-  | { state: "loaded"; consultations: Consultation[] };
+  | { state: "loaded"; consultations: ConsultationListItem[] };
 
 const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
   year: "numeric",
@@ -62,6 +63,9 @@ export function ConsultationsTable() {
   if (list.state === "error")
     return <p role="alert">Could not load consultations.</p>;
   if (list.consultations.length === 0) return <p>No consultations yet.</p>;
+  const shouldShowActionsColumn = list.consultations.some(({ actions }) =>
+    actions.includes("reschedule"),
+  );
 
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -83,6 +87,11 @@ export function ConsultationsTable() {
             <th scope="col" className="px-4 py-3 font-medium">
               Status
             </th>
+            {shouldShowActionsColumn && (
+              <th scope="col" className="px-4 py-3 font-medium">
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -100,6 +109,17 @@ export function ConsultationsTable() {
                 </time>
               </td>
               <td className="px-4 py-3 capitalize">{consultation.status}</td>
+              {shouldShowActionsColumn && (
+                <td className="px-4 py-3">
+                  {consultation.actions.includes("reschedule") && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/booking/${consultation.id}`}>
+                        Reschedule
+                      </Link>
+                    </Button>
+                  )}
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

@@ -12,6 +12,8 @@ export type Consultation = CreateConsultationInput & {
   status: "incomplete" | "complete" | "cancelled";
 };
 
+export type ConsultationListItem = Consultation & { actions: string[] };
+
 export class ConsultationApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message);
@@ -33,7 +35,7 @@ async function readResponse<T>(response: Response, fallbackMessage: string): Pro
 
 export async function getConsultations(signal?: AbortSignal) {
   const response = await fetch(consultationsUrl, { signal });
-  return readResponse<Consultation[]>(response, "Could not load consultations.");
+  return readResponse<ConsultationListItem[]>(response, "Could not load consultations.");
 }
 
 export async function postConsultation(input: CreateConsultationInput) {

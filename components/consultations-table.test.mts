@@ -30,17 +30,29 @@ test("shows loading, then renders the consultations returned by the API", async 
     reason: "Math revision",
     scheduled_at: scheduledAt,
     status: "incomplete",
+    actions: ["reschedule"],
+  }, {
+    id: "booking-2",
+    first_name: "Grace",
+    last_name: "Hopper",
+    reason: "Computer science revision",
+    scheduled_at: scheduledAt,
+    status: "incomplete",
+    actions: [],
   }]));
 
   const table = within(await screen.findByRole("table"));
   expect(table.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
-    "Student", "Reason", "Scheduled time", "Status",
+    "Student", "Reason", "Scheduled time", "Status", "Actions",
   ]);
   const row = within(table.getByRole("row", { name: /Ada Lovelace/ }));
   expect(row.getByRole("cell", { name: "Math revision" })).toBeTruthy();
   expect(row.getByRole("cell", { name: "incomplete" })).toBeTruthy();
   expect(row.getByRole("time").getAttribute("datetime")).toBe(scheduledAt);
   expect(row.getByRole("time").textContent).toBeTruthy();
+  expect(row.getByRole("link", { name: "Reschedule" }).getAttribute("href")).toBe("/booking/booking-1");
+  const readOnlyRow = within(table.getByRole("row", { name: /Grace Hopper/ }));
+  expect(readOnlyRow.queryByRole("link", { name: "Reschedule" })).toBeNull();
   expect(screen.queryByRole("status")).toBeNull();
 });
 
