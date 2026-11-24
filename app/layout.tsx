@@ -40,7 +40,6 @@ export default function RootLayout({
         >
           <nav className="w-full grid grid-cols-7 border-b border-b-foreground/10 h-16">
             <div className="w-full flex justify-end items-center gap-3 col-span-full lg:col-start-2 lg:col-span-5 p-3 px-6 text-sm">
-              <Link href="/">Home</Link>
               {!hasEnvVars ? (
                 <EnvVarWarning />
               ) : (
