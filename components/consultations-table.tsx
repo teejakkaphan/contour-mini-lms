@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatConsultationTime } from "@/lib/consultations/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import {
@@ -14,15 +15,6 @@ type ConsultationList =
   | { state: "signed-out" }
   | { state: "error" }
   | { state: "loaded"; consultations: ConsultationListItem[] };
-
-const dateTimeFormat = new Intl.DateTimeFormat(undefined, {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-  timeZoneName: "short",
-});
 
 export function ConsultationsTable() {
   const [list, setList] = useState<ConsultationList>({ state: "loading" });
@@ -105,7 +97,7 @@ export function ConsultationsTable() {
               </td>
               <td className="whitespace-nowrap px-4 py-3">
                 <time dateTime={consultation.scheduled_at}>
-                  {dateTimeFormat.format(new Date(consultation.scheduled_at))}
+                  {formatConsultationTime(consultation.scheduled_at)}
                 </time>
               </td>
               <td className="px-4 py-3 capitalize">{consultation.status}</td>

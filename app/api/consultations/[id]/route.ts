@@ -1,5 +1,5 @@
 import { apiError } from "@/lib/api/response";
-import { isConsultationId } from "@/lib/consultations/validation";
+import { isConsultationId } from "@/lib/consultations/utils";
 import { getApiSession, getEffectivePermissions } from "../../_shared/supabase";
 import {
   consultationFields,

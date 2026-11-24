@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { formatConsultationTime } from "@/lib/consultations/utils";
 import { useEffect, useState } from "react";
 import { RescheduleBookingForm } from "@/components/reschedule-booking-form";
 import { ConsultationApiError, getConsultationById, type ConsultationListItem } from "@/lib/api/consultations";
@@ -8,12 +9,6 @@ import { ConsultationApiError, getConsultationById, type ConsultationListItem } 
 type Details =
   | { state: "loading" | "unavailable" | "signed-out" | "error" }
   | { state: "ready"; consultation: ConsultationListItem };
-
-const timeFormat = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "UTC",
-});
 
 export function RescheduleDetails({ consultationId }: { consultationId: string }) {
   const [details, setDetails] = useState<Details>({ state: "loading" });
@@ -56,7 +51,7 @@ export function RescheduleDetails({ consultationId }: { consultationId: string }
     <>
       <p>{reason}</p>
       <p className="text-sm text-muted-foreground">
-        Currently scheduled for <time dateTime={scheduled_at}>{timeFormat.format(new Date(scheduled_at))} UTC</time>
+        Currently scheduled for <time dateTime={scheduled_at}>{formatConsultationTime(scheduled_at)}</time>
       </p>
       <RescheduleBookingForm consultationId={consultationId} />
     </>

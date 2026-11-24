@@ -3,6 +3,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import ReschedulePage from "./page";
+import { formatConsultationTime } from "@/lib/consultations/utils";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
@@ -23,6 +24,7 @@ test("loads the consultation from the API before rendering the form", async () =
 
   expect(await screen.findByLabelText("New date and time (local)")).toBeTruthy();
   expect(screen.getByText("Math revision")).toBeTruthy();
+  expect(screen.getByRole("time").textContent).toBe(formatConsultationTime(consultation.scheduled_at));
   expect(fetchMock).toHaveBeenCalledExactlyOnceWith(`/api/consultations/${id}`, {
     signal: expect.any(AbortSignal),
   });
