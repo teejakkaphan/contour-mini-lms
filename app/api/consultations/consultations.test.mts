@@ -35,11 +35,13 @@ function request(method: "POST" | "PATCH", body: unknown) {
 
 type SupabaseMockOptions = {
   signedIn?: boolean;
-  data?: typeof savedBooking | (typeof savedBooking)[] | null;
+  data?: typeof savedBooking | (typeof savedBooking & { student_id: string })[] | null;
+  permissions?: string[];
+  permissionError?: boolean;
   error?: { code?: string; message?: string } | null;
 };
 
-function mockSupabase({ signedIn = true, data = null, error = null }: SupabaseMockOptions = {}) {
+function mockSupabase({ signedIn = true, data = null, error = null, permissions = [], permissionError = false }: SupabaseMockOptions = {}) {
   const result = { data, error };
   const query = {
     select: vi.fn((): object => query),
@@ -51,7 +53,14 @@ function mockSupabase({ signedIn = true, data = null, error = null }: SupabaseMo
     maybeSingle: vi.fn(async () => result),
     then: (resolve: (value: typeof result) => void) => Promise.resolve(result).then(resolve),
   };
-  const from = vi.fn(() => query);
+  const permissionQuery = {
+    select: vi.fn(() => permissionQuery),
+    order: vi.fn(async () => ({
+      data: permissions.map((permission) => ({ permission })),
+      error: permissionError ? { message: "Permissions unavailable" } : null,
+    })),
+  };
+  const from = vi.fn((table: string) => table === "current_user_permissions" ? permissionQuery : query);
   createClient.mockImplementation(async () => ({
     from,
     auth: {
@@ -79,18 +88,36 @@ test("all consultation handlers reject signed-out callers before querying", asyn
 });
 
 test("GET returns the rows visible to the caller in scheduled order", async () => {
-  const { from, query } = mockSupabase({ data: [savedBooking] });
+  const { from, query } = mockSupabase({
+    permissions: ["consultations.read_all"],
+    data: [{ ...savedBooking, student_id: userId }],
+  });
   const response = await GET();
 
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
-  assert.deepEqual(await response.json(), [savedBooking]);
-  assert.deepEqual(from.mock.calls[0], ["consultations"]);
+  assert.deepEqual(await response.json(), [{ ...savedBooking, actions: [] }]);
+  assert.deepEqual(from.mock.calls, [["consultations"], ["current_user_permissions"]]);
   assert.deepEqual(query.order.mock.calls, [
     ["scheduled_at"],
     ["id"],
   ]);
   assert.equal(query.eq.mock.calls.length, 0);
+});
+
+test("GET offers rescheduling only on owned rows when the caller has the update grant", async () => {
+  const otherBooking = { ...savedBooking, id: "another-booking" };
+  mockSupabase({
+    permissions: ["consultations.update_own", "consultations.read_all"],
+    data: [{ ...savedBooking, student_id: userId }, { ...otherBooking, student_id: "another-user" }],
+  });
+
+  const response = await GET();
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), [
+    { ...savedBooking, actions: ["reschedule"] },
+    { ...otherBooking, actions: [] },
+  ]);
 });
 
 test("GET returns an empty list when no rows are visible", async () => {
@@ -102,6 +129,13 @@ test("GET returns an empty list when no rows are visible", async () => {
 
 test("GET returns a generic server error when Supabase fails", async () => {
   mockSupabase({ error: { message: "internal database details" } });
+  const response = await GET();
+  assert.equal(response.status, 500);
+  assert.deepEqual(await response.json(), { error: "Could not load consultations" });
+});
+
+test("GET returns a generic server error if permissions cannot be loaded", async () => {
+  mockSupabase({ data: [], permissionError: true });
   const response = await GET();
   assert.equal(response.status, 500);
   assert.deepEqual(await response.json(), { error: "Could not load consultations" });

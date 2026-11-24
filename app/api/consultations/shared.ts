@@ -1,15 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
-
 export const consultationFields =
   "id, first_name, last_name, reason, scheduled_at, status";
-
-export async function getConsultationSession() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-  const userId = data?.claims?.sub;
-
-  return !error && userId ? { supabase, userId } : null;
-}
 
 export async function readConsultationBody(request: Request) {
   const contentType = request.headers.get("content-type")?.split(";")[0];

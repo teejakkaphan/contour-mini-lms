@@ -1,13 +1,13 @@
 import { apiError } from "@/lib/api/response";
+import { getApiSession } from "../../_shared/supabase";
 import {
   consultationFields,
-  getConsultationSession,
   parseScheduledAt,
   readConsultationBody,
 } from "../shared";
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
-  const session = await getConsultationSession();
+  const session = await getApiSession();
   if (!session) return apiError("Authentication required", 401);
 
   const { id } = await context.params;

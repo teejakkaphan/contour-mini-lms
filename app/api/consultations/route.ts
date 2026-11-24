@@ -1,28 +1,37 @@
 import { apiError } from "@/lib/api/response";
+import { getApiSession, getEffectivePermissions } from "../_shared/supabase";
 import {
   consultationFields,
-  getConsultationSession,
   parseScheduledAt,
   readConsultationBody,
 } from "./shared";
 
 export async function GET() {
-  const session = await getConsultationSession();
+  const session = await getApiSession();
   if (!session) return apiError("Authentication required", 401);
 
-  const { data, error } = await session.supabase
-    .from("consultations")
-    .select(consultationFields)
-    .order("scheduled_at")
-    .order("id");
+  const [{ data, error }, permissions] = await Promise.all([
+    session.supabase
+      .from("consultations")
+      .select(`${consultationFields}, student_id`)
+      .order("scheduled_at")
+      .order("id"),
+    getEffectivePermissions(session.supabase),
+  ]);
 
-  if (error) return apiError("Could not load consultations", 500);
+  if (error || !permissions) return apiError("Could not load consultations", 500);
 
-  return Response.json(data, { headers: { "Cache-Control": "no-store" } });
+  const canUpdateOwn = permissions.includes("consultations.update_own");
+  const consultations = data.map(({ student_id, ...consultation }) => ({
+    ...consultation,
+    actions: canUpdateOwn && student_id === session.userId ? ["reschedule"] : [],
+  }));
+
+  return Response.json(consultations, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: Request) {
-  const session = await getConsultationSession();
+  const session = await getApiSession();
   if (!session) return apiError("Authentication required", 401);
 
   const body = await readConsultationBody(request);
