@@ -22,7 +22,7 @@ export function RescheduleBookingForm({ consultationId }: { consultationId: stri
     setError("");
     setIsSubmitting(true);
     try {
-      await patchConsultation(consultationId, scheduledAt.toISOString());
+      await patchConsultation(consultationId, { scheduled_at: scheduledAt.toISOString() });
       setLocalTime("");
       router.replace("/dashboard");
     } catch (error) {

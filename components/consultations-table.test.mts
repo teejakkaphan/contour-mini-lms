@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { ConsultationsTable } from "./consultations-table";
@@ -30,7 +30,7 @@ test("shows loading, then renders the consultations returned by the API", async 
     reason: "Math revision",
     scheduled_at: scheduledAt,
     status: "incomplete",
-    actions: ["reschedule"],
+    actions: ["reschedule", "cancel"],
   }, {
     id: "booking-2",
     first_name: "Grace",
@@ -53,7 +53,51 @@ test("shows loading, then renders the consultations returned by the API", async 
   expect(row.getByRole("link", { name: "Reschedule" }).getAttribute("href")).toBe("/booking/booking-1");
   const readOnlyRow = within(table.getByRole("row", { name: /Grace Hopper/ }));
   expect(readOnlyRow.queryByRole("link", { name: "Reschedule" })).toBeNull();
+  expect(readOnlyRow.queryByRole("button", { name: "Cancel" })).toBeNull();
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+const cancellableBooking = {
+  id: "booking-1",
+  first_name: "Ada",
+  last_name: "Lovelace",
+  reason: "Math revision",
+  scheduled_at: "2026-11-24T21:00:00.000Z",
+  status: "incomplete",
+  actions: ["reschedule", "cancel"],
+};
+
+test("cancels the selected booking through PATCH and keeps its row visible", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json([cancellableBooking]))
+    .mockResolvedValueOnce(Response.json({ ...cancellableBooking, status: "cancelled" }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(createElement(ConsultationsTable));
+
+  fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+  expect(await screen.findByRole("cell", { name: "cancelled" })).toBeTruthy();
+  expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/consultations/booking-1", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "cancelled" }),
+  });
+  expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  expect(screen.queryByRole("link", { name: "Reschedule" })).toBeNull();
+});
+
+test("keeps the booking unchanged and allows a retry when cancellation fails", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce(Response.json([cancellableBooking]))
+    .mockResolvedValueOnce(Response.json({ error: "Update is forbidden" }, { status: 403 }));
+  vi.stubGlobal("fetch", fetchMock);
+  render(createElement(ConsultationsTable));
+
+  fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+  expect((await screen.findByRole("alert")).textContent).toBe("Update is forbidden");
+  expect(screen.getByRole("cell", { name: "incomplete" })).toBeTruthy();
+  expect(screen.getByRole<HTMLButtonElement>("button", { name: "Cancel" }).disabled).toBe(false);
 });
 
 test("shows an empty state when the API returns no consultations", async () => {

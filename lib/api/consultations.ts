@@ -68,17 +68,20 @@ export async function postConsultation(input: CreateConsultationInput) {
   return readResponse<Consultation>(response, "Could not book consultation.");
 }
 
-export async function patchConsultation(id: string, scheduledAt: string) {
+export async function patchConsultation(
+  id: string,
+  changes: Partial<Pick<Consultation, "scheduled_at" | "status">>,
+) {
   const response = await fetch(
     `${consultationsUrl}/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scheduled_at: scheduledAt }),
+      body: JSON.stringify(changes),
     },
   );
   return readResponse<Consultation>(
     response,
-    "Could not reschedule consultation.",
+    "Could not update consultation.",
   );
 }

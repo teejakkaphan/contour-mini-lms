@@ -8,6 +8,7 @@ import {
   type ConsultationListItem,
   ConsultationApiError,
   getConsultations,
+  patchConsultation,
 } from "@/lib/api/consultations";
 
 type ConsultationList =
@@ -18,6 +19,30 @@ type ConsultationList =
 
 export function ConsultationsTable() {
   const [list, setList] = useState<ConsultationList>({ state: "loading" });
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState("");
+
+  async function cancelConsultation(id: string) {
+    if (cancellingId) return;
+    setCancellingId(id);
+    setCancelError("");
+
+    try {
+      const updated = await patchConsultation(id, { status: "cancelled" });
+      setList((current) => current.state === "loaded" ? {
+        ...current,
+        consultations: current.consultations.map((row) => row.id === id
+          ? { ...updated, actions: [] }
+          : row),
+      } : current);
+    } catch (error) {
+      setCancelError(error instanceof ConsultationApiError
+        ? error.message
+        : "Could not cancel consultation. Please try again.");
+    } finally {
+      setCancellingId(null);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -56,7 +81,7 @@ export function ConsultationsTable() {
     return <p role="alert">Could not load consultations.</p>;
   if (list.consultations.length === 0) return <p>No consultations yet.</p>;
   const shouldShowActionsColumn = list.consultations.some(({ actions }) =>
-    actions.includes("reschedule"),
+    actions.includes("reschedule") || actions.includes("cancel"),
   );
 
   return (
@@ -65,6 +90,9 @@ export function ConsultationsTable() {
         aria-labelledby="consultations-heading"
         className="w-full text-left text-sm"
       >
+        {cancelError && (
+          <caption className="p-3 text-left text-destructive"><span role="alert">{cancelError}</span></caption>
+        )}
         <thead className="bg-muted text-muted-foreground">
           <tr>
             <th scope="col" className="px-4 py-3 font-medium">
@@ -103,13 +131,24 @@ export function ConsultationsTable() {
               <td className="px-4 py-3 capitalize">{consultation.status}</td>
               {shouldShowActionsColumn && (
                 <td className="px-4 py-3">
-                  {consultation.actions.includes("reschedule") && (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/booking/${consultation.id}`}>
-                        Reschedule
-                      </Link>
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {consultation.actions.includes("reschedule") && (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/booking/${consultation.id}`}>Reschedule</Link>
+                      </Button>
+                    )}
+                    {consultation.actions.includes("cancel") && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        disabled={cancellingId !== null}
+                        onClick={() => void cancelConsultation(consultation.id)}
+                      >
+                        {cancellingId === consultation.id ? "Cancelling…" : "Cancel"}
+                      </Button>
+                    )}
+                  </div>
                 </td>
               )}
             </tr>

@@ -89,7 +89,7 @@ test("all consultation handlers reject signed-out callers before querying", asyn
 });
 
 test.each([
-  [userId, ["consultations.update_own"], ["reschedule"]],
+  [userId, ["consultations.update_own"], ["reschedule", "cancel"]],
   [userId, ["consultations.read_all"], []],
   ["another-user", ["consultations.update_own", "consultations.read_all"], []],
 ] as const)("GET by ID derives actions from ownership and grants (%s, %j)", async (studentId, permissions, actions) => {
@@ -145,7 +145,7 @@ test("GET offers rescheduling only on owned rows when the caller has the update 
   const response = await GET();
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), [
-    { ...savedBooking, actions: ["reschedule"] },
+    { ...savedBooking, actions: ["reschedule", "cancel"] },
     { ...otherBooking, actions: [] },
   ]);
 });
