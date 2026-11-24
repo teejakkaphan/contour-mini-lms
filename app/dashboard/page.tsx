@@ -1,6 +1,5 @@
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { ConsultationsTable } from "@/components/consultations-table";
+import { BookAppointmentButton } from "@/components/book-appointment-button";
 
 export default function DashboardPage() {
   return (
@@ -12,9 +11,7 @@ export default function DashboardPage() {
         <h1 id="consultations-heading" className="text-2xl font-bold">
           Consultations
         </h1>
-        <Button asChild>
-          <Link href="/booking">Book an appointment</Link>
-        </Button>
+        <BookAppointmentButton />
       </div>
       <ConsultationsTable />
     </section>

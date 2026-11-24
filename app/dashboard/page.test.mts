@@ -1,27 +1,23 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, expect, test, vi } from "vitest";
+import { BookAppointmentButton } from "@/components/book-appointment-button";
 import { ConsultationsTable } from "@/components/consultations-table";
 import DashboardPage from "./page";
 
+vi.mock("@/components/book-appointment-button", () => ({ BookAppointmentButton: vi.fn(() => null) }));
 vi.mock("@/components/consultations-table", () => ({ ConsultationsTable: vi.fn(() => null) }));
 
 afterEach(() => {
   cleanup();
-  vi.mocked(ConsultationsTable).mockClear();
+  vi.clearAllMocks();
 });
 
-test("links to the booking page from the dashboard", () => {
+test("renders the booking control and consultations table on the dashboard", () => {
   render(createElement(DashboardPage));
 
-  const bookingLink = screen.getByRole("link", { name: "Book an appointment" });
-  expect(bookingLink.getAttribute("href")).toBe("/booking");
-});
-
-test("renders the consultations table on the dashboard", () => {
-  render(createElement(DashboardPage));
-
+  expect(BookAppointmentButton).toHaveBeenCalled();
   expect(ConsultationsTable).toHaveBeenCalled();
 });
