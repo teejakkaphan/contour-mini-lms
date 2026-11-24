@@ -1,4 +1,5 @@
 import { apiError } from "@/lib/api/response";
+import { isConsultationId } from "@/lib/consultations/validation";
 import { getApiSession } from "../../_shared/supabase";
 import {
   consultationFields,
@@ -11,7 +12,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (!session) return apiError("Authentication required", 401);
 
   const { id } = await context.params;
-  if (!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id)) {
+  if (!isConsultationId(id)) {
     return apiError("Invalid consultation ID", 400);
   }
 
@@ -45,7 +46,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     .maybeSingle();
 
   if (error?.code === "42501") return apiError("Update is forbidden", 403);
-  if (error) return apiError("Could not update consultation", 500);
+  if (error) {
+    console.error("Consultation update failed", { code: error.code, message: error.message });
+    return apiError("Could not update consultation", 500);
+  }
   if (!data) return apiError("Consultation not found", 404);
 
   return Response.json(data);
