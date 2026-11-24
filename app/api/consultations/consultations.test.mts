@@ -1,44 +1,13 @@
 import assert from "node:assert/strict";
-import * as nodeModule from "node:module";
-import type { ResolveFnOutput, ResolveHookContext } from "node:module";
-import { mock, test } from "node:test";
+import { test, vi } from "vitest";
+import { GET, POST } from "./route";
+import { PATCH } from "./[id]/route";
 
-// The project uses Node 20 type definitions. The test runner uses Node 24.
-type ResolveHook = (
-  specifier: string,
-  context: ResolveHookContext,
-  nextResolve: (specifier: string, context: ResolveHookContext) => ResolveFnOutput,
-) => ResolveFnOutput;
+const { createClient } = vi.hoisted(() => ({
+  createClient: vi.fn<() => Promise<unknown>>(),
+}));
 
-const { registerHooks } = nodeModule as typeof nodeModule & {
-  registerHooks(hooks: { resolve: ResolveHook }): { deregister(): void };
-};
-
-const projectRoot = new URL("../../../", import.meta.url);
-const serverClientUrl = new URL("lib/supabase/server.ts", projectRoot);
-const hooks = registerHooks({
-  resolve(specifier, context, nextResolve) {
-    if (specifier.startsWith("@/")) {
-      const target = new URL(`${specifier.slice(2)}.ts`, projectRoot);
-      return nextResolve(target.href, context);
-    }
-    if (specifier === "./shared" || specifier === "../shared") {
-      return nextResolve(`${specifier}.ts`, context);
-    }
-    if (specifier === "./route.js" || specifier === "./[id]/route.js") {
-      return nextResolve(`${specifier.slice(0, -3)}.ts`, context);
-    }
-    return nextResolve(specifier, context);
-  },
-});
-
-const createClient = mock.fn<() => Promise<unknown>>();
-const mockOptions = { cache: false, exports: { createClient } };
-mock.module(serverClientUrl.href, mockOptions);
-
-const { GET, POST } = await import("./route.js");
-const { PATCH } = await import("./[id]/route.js");
-hooks.deregister();
+vi.mock("@/lib/supabase/server", () => ({ createClient }));
 
 const userId = "697fa40a-4994-4027-97e6-e6e2c90aada9";
 const id = "021a1563-09c8-4a86-a623-44cd3b3e7f4a";
@@ -73,17 +42,17 @@ type SupabaseMockOptions = {
 function mockSupabase({ signedIn = true, data = null, error = null }: SupabaseMockOptions = {}) {
   const result = { data, error };
   const query = {
-    select: mock.fn((): object => query),
-    order: mock.fn((): object => query),
-    insert: mock.fn((): object => query),
-    update: mock.fn((): object => query),
-    eq: mock.fn((): object => query),
-    single: mock.fn(async () => result),
-    maybeSingle: mock.fn(async () => result),
+    select: vi.fn((): object => query),
+    order: vi.fn((): object => query),
+    insert: vi.fn((): object => query),
+    update: vi.fn((): object => query),
+    eq: vi.fn((): object => query),
+    single: vi.fn(async () => result),
+    maybeSingle: vi.fn(async () => result),
     then: (resolve: (value: typeof result) => void) => Promise.resolve(result).then(resolve),
   };
-  const from = mock.fn(() => query);
-  createClient.mock.mockImplementation(async () => ({
+  const from = vi.fn(() => query);
+  createClient.mockImplementation(async () => ({
     from,
     auth: {
       getClaims: async () => signedIn
@@ -106,7 +75,7 @@ test("all consultation handlers reject signed-out callers before querying", asyn
     assert.equal(response.status, 401);
     assert.deepEqual(await response.json(), { error: "Authentication required" });
   }
-  assert.equal(from.mock.callCount(), 0);
+  assert.equal(from.mock.calls.length, 0);
 });
 
 test("GET returns the rows visible to the caller in scheduled order", async () => {
@@ -116,12 +85,12 @@ test("GET returns the rows visible to the caller in scheduled order", async () =
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("Cache-Control"), "no-store");
   assert.deepEqual(await response.json(), [savedBooking]);
-  assert.deepEqual(from.mock.calls[0].arguments, ["consultations"]);
-  assert.deepEqual(query.order.mock.calls.map((call) => call.arguments), [
+  assert.deepEqual(from.mock.calls[0], ["consultations"]);
+  assert.deepEqual(query.order.mock.calls, [
     ["scheduled_at"],
     ["id"],
   ]);
-  assert.equal(query.eq.mock.callCount(), 0);
+  assert.equal(query.eq.mock.calls.length, 0);
 });
 
 test("GET returns an empty list when no rows are visible", async () => {
@@ -149,7 +118,7 @@ test("POST uses the session owner, trims text, and normalizes the date", async (
 
   assert.equal(response.status, 201);
   assert.deepEqual(await response.json(), savedBooking);
-  assert.deepEqual(query.insert.mock.calls[0].arguments, [{
+  assert.deepEqual(query.insert.mock.calls[0], [{
     ...booking,
     scheduled_at: savedBooking.scheduled_at,
     student_id: userId,
@@ -172,7 +141,7 @@ test("POST rejects malformed JSON, missing fields, and invalid dates", async () 
   for (const invalidRequest of invalidRequests) {
     assert.equal((await POST(invalidRequest)).status, 400);
   }
-  assert.equal(from.mock.callCount(), 0);
+  assert.equal(from.mock.calls.length, 0);
 });
 
 test("POST returns 403 when Supabase rejects the insert", async () => {
@@ -190,11 +159,11 @@ test("PATCH updates the requested booking's time and status", async () => {
 
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), updated);
-  assert.deepEqual(query.update.mock.calls[0].arguments, [{
+  assert.deepEqual(query.update.mock.calls[0], [{
     scheduled_at: savedBooking.scheduled_at,
     status: "cancelled",
   }]);
-  assert.deepEqual(query.eq.mock.calls[0].arguments, ["id", id]);
+  assert.deepEqual(query.eq.mock.calls[0], ["id", id]);
 });
 
 test("PATCH rejects an invalid ID, unsupported fields, and invalid values", async () => {
@@ -205,7 +174,7 @@ test("PATCH rejects an invalid ID, unsupported fields, and invalid values", asyn
   for (const body of [{}, { student_id: userId }, { status: "pending" }, { scheduled_at: null }]) {
     assert.equal((await PATCH(request("PATCH", body), context)).status, 400);
   }
-  assert.equal(from.mock.callCount(), 0);
+  assert.equal(from.mock.calls.length, 0);
 });
 
 test("PATCH returns 404 when no row was updated and 403 for a permission error", async () => {
