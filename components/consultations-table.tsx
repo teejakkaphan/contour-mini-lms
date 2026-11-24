@@ -116,7 +116,7 @@ export function ConsultationsTable() {
           {list.consultations.map((consultation) => (
             <tr key={consultation.id} className="border-t">
               <td className="px-4 py-3">
-                {consultation.first_name} {consultation.last_name}
+                {[consultation.first_name, consultation.last_name].filter(Boolean).join(" ") || "Name unavailable"}
               </td>
               <td className="min-w-40 break-words px-4 py-3">
                 {consultation.reason}

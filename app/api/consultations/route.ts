@@ -5,6 +5,7 @@ import {
   parseScheduledAt,
   readConsultationBody,
   withConsultationActions,
+  withConsultationProfile,
 } from "./shared";
 
 export async function GET() {
@@ -35,15 +36,13 @@ export async function POST(request: Request) {
   const body = await readConsultationBody(request);
   if (!body) return apiError("Expected a JSON object", 400);
 
-  const { first_name, last_name, reason } = body;
+  const { reason } = body;
   const scheduledAt = parseScheduledAt(body.scheduled_at);
   if (
-    typeof first_name !== "string" || !first_name.trim() ||
-    typeof last_name !== "string" || !last_name.trim() ||
     typeof reason !== "string" || !reason.trim() || !scheduledAt
   ) {
     return apiError(
-      "First name, last name, reason, and a scheduled time with a timezone are required",
+      "A reason and a scheduled time with a timezone are required",
       400,
     );
   }
@@ -52,8 +51,6 @@ export async function POST(request: Request) {
     .from("consultations")
     .insert({
       student_id: session.userId,
-      first_name: first_name.trim(),
-      last_name: last_name.trim(),
       reason: reason.trim(),
       scheduled_at: scheduledAt,
     })
@@ -63,5 +60,5 @@ export async function POST(request: Request) {
   if (error?.code === "42501") return apiError("Booking is forbidden", 403);
   if (error) return apiError("Could not book consultation", 500);
 
-  return Response.json(data, { status: 201 });
+  return Response.json(withConsultationProfile(data), { status: 201 });
 }

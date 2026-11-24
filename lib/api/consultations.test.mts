@@ -6,12 +6,10 @@ import {
 } from "./consultations";
 
 const input = {
-  first_name: "Ada",
-  last_name: "Lovelace",
   reason: "Math revision",
   scheduled_at: "2026-11-24T21:00:00.000Z",
 };
-const booking = { ...input, id: "booking-1", status: "incomplete" };
+const booking = { ...input, id: "booking-1", status: "incomplete", first_name: "Ada", last_name: "Lovelace" };
 
 afterEach(() => vi.unstubAllGlobals());
 

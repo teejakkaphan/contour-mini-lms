@@ -1,13 +1,25 @@
 export const consultationFields =
-  "id, first_name, last_name, reason, scheduled_at, status";
+  "id, reason, scheduled_at, status, profiles(first_name, last_name)";
 
-export function withConsultationActions<T extends { student_id: string }>(
+type ConsultationProfile = { first_name: string | null; last_name: string | null };
+
+export function withConsultationProfile<T extends { profiles: ConsultationProfile | null }>(
+  { profiles, ...consultation }: T,
+) {
+  return {
+    ...consultation,
+    first_name: profiles?.first_name ?? null,
+    last_name: profiles?.last_name ?? null,
+  };
+}
+
+export function withConsultationActions<T extends { student_id: string; profiles: ConsultationProfile | null }>(
   { student_id, ...consultation }: T,
   userId: string,
   canUpdateOwn: boolean,
 ) {
   return {
-    ...consultation,
+    ...withConsultationProfile(consultation),
     actions: canUpdateOwn && student_id === userId ? ["consultations.update_own"] : [],
   };
 }

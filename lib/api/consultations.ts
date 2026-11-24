@@ -1,14 +1,14 @@
 const consultationsUrl = "/api/consultations";
 
 export type CreateConsultationInput = {
-  first_name: string;
-  last_name: string;
   reason: string;
   scheduled_at: string;
 };
 
 export type Consultation = CreateConsultationInput & {
   id: string;
+  first_name: string | null;
+  last_name: string | null;
   status: "incomplete" | "complete" | "cancelled";
 };
 

@@ -1,7 +1,6 @@
 "use client";
 
-import { type SubmitEvent, useEffect, useState } from "react";
-import { getMe } from "@/lib/api/auth";
+import { type SubmitEvent, useState } from "react";
 import {
   ConsultationApiError,
   postConsultation,
@@ -32,43 +31,14 @@ function readBookingForm(fields: FormData) {
 }
 
 export function CreateBookingForm() {
-  const [accountName, setAccountName] = useState<{ first_name: string; last_name: string } | null>(null);
-  const [profileError, setProfileError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState("");
   const [isBooked, setIsBooked] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadAccountName() {
-      try {
-        const profile = await getMe(controller.signal);
-        if (controller.signal.aborted) return;
-
-        const firstName = profile.first_name?.trim();
-        const lastName = profile.last_name?.trim();
-        if (!firstName || !lastName) {
-          setProfileError("Your account needs a first and last name before you can book.");
-          return;
-        }
-
-        setAccountName({ first_name: firstName, last_name: lastName });
-      } catch {
-        if (!controller.signal.aborted) {
-          setProfileError("Could not load your account details. Reload the page to try again.");
-        }
-      }
-    }
-
-    void loadAccountName();
-    return () => controller.abort();
-  }, []);
-
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting || !accountName) return;
+    if (isSubmitting) return;
 
     const form = event.currentTarget;
     const booking = readBookingForm(new FormData(form));
@@ -84,7 +54,7 @@ export function CreateBookingForm() {
 
     setIsSubmitting(true);
     try {
-      await postConsultation({ ...accountName, ...booking });
+      await postConsultation(booking);
       form.reset();
       setIsBooked(true);
     } catch (error) {
@@ -123,12 +93,10 @@ export function CreateBookingForm() {
             required
           />
         </div>
-        <Button type="submit" disabled={!accountName || !isComplete || isSubmitting}>
+        <Button type="submit" disabled={!isComplete || isSubmitting}>
           {isSubmitting ? "Booking…" : "Book"}
         </Button>
       </fieldset>
-      {!accountName && !profileError && <output className="text-sm">Loading account details…</output>}
-      {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

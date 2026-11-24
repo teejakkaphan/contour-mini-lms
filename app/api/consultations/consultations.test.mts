@@ -12,18 +12,19 @@ vi.mock("@/lib/supabase/server", () => ({ createClient }));
 const userId = "697fa40a-4994-4027-97e6-e6e2c90aada9";
 const id = "021a1563-09c8-4a86-a623-44cd3b3e7f4a";
 const context = { params: Promise.resolve({ id }) };
+const profile = { first_name: "Ada", last_name: "Lovelace" };
 const booking = {
-  first_name: "Ada",
-  last_name: "Lovelace",
   reason: "Math revision",
   scheduled_at: "2026-11-25T10:00:00+13:00",
 };
-const savedBooking = {
+const dbBooking = {
   ...booking,
   id,
   scheduled_at: "2026-11-24T21:00:00.000Z",
   status: "incomplete",
 };
+const savedBooking = { ...dbBooking, ...profile };
+const joinedBooking = { ...dbBooking, profiles: profile };
 
 function request(method: "POST" | "PATCH", body: unknown) {
   return new Request("http://localhost/api/consultations", {
@@ -35,7 +36,7 @@ function request(method: "POST" | "PATCH", body: unknown) {
 
 type SupabaseMockOptions = {
   signedIn?: boolean;
-  data?: (typeof savedBooking & { student_id?: string }) | (typeof savedBooking & { student_id: string })[] | null;
+  data?: (typeof joinedBooking & { student_id?: string }) | (typeof joinedBooking & { student_id: string })[] | null;
   permissions?: string[];
   permissionError?: boolean;
   error?: { code?: string; message?: string } | null;
@@ -93,7 +94,7 @@ test.each([
   [userId, ["consultations.read_all"], []],
   ["another-user", ["consultations.update_own", "consultations.read_all"], []],
 ] as const)("GET by ID derives actions from ownership and grants (%s, %j)", async (studentId, permissions, actions) => {
-  const { query } = mockSupabase({ data: { ...savedBooking, student_id: studentId }, permissions: [...permissions] });
+  const { query } = mockSupabase({ data: { ...joinedBooking, student_id: studentId }, permissions: [...permissions] });
   const response = await GET_BY_ID(new Request(`http://localhost/api/consultations/${id}`), context);
 
   assert.equal(response.status, 200);
@@ -120,7 +121,7 @@ test("GET by ID rejects malformed IDs without querying Supabase", async () => {
 test("GET returns the rows visible to the caller in scheduled order", async () => {
   const { from, query } = mockSupabase({
     permissions: ["consultations.read_all"],
-    data: [{ ...savedBooking, student_id: userId }],
+    data: [{ ...joinedBooking, student_id: userId }],
   });
   const response = await GET();
 
@@ -139,7 +140,7 @@ test("GET offers rescheduling only on owned rows when the caller has the update 
   const otherBooking = { ...savedBooking, id: "another-booking" };
   mockSupabase({
     permissions: ["consultations.update_own", "consultations.read_all"],
-    data: [{ ...savedBooking, student_id: userId }, { ...otherBooking, student_id: "another-user" }],
+    data: [{ ...joinedBooking, student_id: userId }, { ...joinedBooking, id: otherBooking.id, student_id: "another-user" }],
   });
 
   const response = await GET();
@@ -172,10 +173,11 @@ test("GET returns a generic server error if permissions cannot be loaded", async
 });
 
 test("POST uses the session owner, trims text, and normalizes the date", async () => {
-  const { query } = mockSupabase({ data: savedBooking });
+  const { query } = mockSupabase({ data: joinedBooking });
   const response = await POST(request("POST", {
     ...booking,
-    first_name: " Ada ",
+    first_name: "Ignored name",
+    reason: " Math revision ",
     student_id: "another user",
     status: "complete",
   }));
@@ -215,7 +217,7 @@ test("POST returns 403 when Supabase rejects the insert", async () => {
 
 test("PATCH updates the requested booking's time and status", async () => {
   const updated = { ...savedBooking, status: "cancelled" };
-  const { query } = mockSupabase({ data: updated });
+  const { query } = mockSupabase({ data: { ...joinedBooking, status: "cancelled" } });
   const response = await PATCH(request("PATCH", {
     scheduled_at: booking.scheduled_at,
     status: "cancelled",

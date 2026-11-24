@@ -6,18 +6,29 @@ export type Database = {
           Tables: {
             "consultations": {
                   Row: {
-                    "created_at": string,"first_name": string,"id": string,"last_name": string,"reason": string,"scheduled_at": string,"status": string,"student_id": string
+                    "created_at": string,"id": string,"reason": string,"scheduled_at": string,"status": string,"student_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"first_name": string,"id"?: string,"last_name": string,"reason": string,"scheduled_at": string,"status"?: string,"student_id": string
+                    "created_at"?: string,"id"?: string,"reason": string,"scheduled_at": string,"status"?: string,"student_id": string
                   }
                   Update: {
-                    "created_at"?: string,"first_name"?: string,"id"?: string,"last_name"?: string,"reason"?: string,"scheduled_at"?: string,"status"?: string,"student_id"?: string
+                    "created_at"?: string,"id"?: string,"reason"?: string,"scheduled_at"?: string,"status"?: string,"student_id"?: string
                   }
-                  Relationships: [
-
-                  ]
+                  Relationships: [{
+                    foreignKeyName: "consultations_student_id_fkey"
+                    columns: ["student_id"]
+                    isOneToOne: false
+                    referencedRelation: "profiles"
+                    referencedColumns: ["user_id"]
+                  }]
+                }
+            "profiles": {
+                  Row: { "first_name": string | null; "last_name": string | null; "user_id": string }
+                  ComputedFields: never
+                  Insert: { "first_name"?: string | null; "last_name"?: string | null; "user_id": string }
+                  Update: { "first_name"?: string | null; "last_name"?: string | null; "user_id"?: string }
+                  Relationships: []
                 }
           }
           Views: {

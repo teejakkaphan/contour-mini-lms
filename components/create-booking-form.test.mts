@@ -13,11 +13,9 @@ afterEach(() => {
 });
 
 const localTime = "2026-11-25T10:00";
-const profile = { first_name: "Ada", last_name: "Lovelace", email: "ada@example.test" };
 
 function mockBookingApi(postBooking?: () => Promise<Response>) {
   const fetchMock = vi.fn<typeof fetch>(async (url) => {
-    if (url === "/api/me") return Response.json(profile);
     if (url === "/api/consultations" && postBooking) return postBooking();
     throw new Error(`Unexpected request to ${url}`);
   });
@@ -62,15 +60,12 @@ test("submits booking details in UTC, disables Book while saving, and resets on 
 
   await user.click(screen.getByRole("button", { name: "Book" }));
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Booking…" }).disabled, true);
-  assert.equal(fetchMock.mock.calls.length, 2);
-  assert.equal(fetchMock.mock.calls[0][0], "/api/me");
-  const [url, options] = fetchMock.mock.calls[1];
+  assert.equal(fetchMock.mock.calls.length, 1);
+  const [url, options] = fetchMock.mock.calls[0];
   assert.equal(url, "/api/consultations");
   assert.equal(options?.method, "POST");
   assert.equal(typeof options?.body, "string");
   assert.deepEqual(JSON.parse(String(options?.body)), {
-    first_name: "Ada",
-    last_name: "Lovelace",
     reason: "Math revision",
     scheduled_at: new Date(2026, 10, 25, 10).toISOString(),
   });
@@ -112,21 +107,4 @@ test("shows a retry message after a network failure", async () => {
     "Could not book consultation. Please try again.",
   );
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Book" }).disabled, false);
-});
-
-test.each([
-  [Response.json({ ...profile, last_name: null }), "Your account needs a first and last name before you can book."],
-  [new Response(null, { status: 500 }), "Could not load your account details. Reload the page to try again."],
-])("blocks booking when account details are unavailable", async (response, message) => {
-  const fetchMock = vi.fn().mockResolvedValue(response);
-  vi.stubGlobal("fetch", fetchMock);
-  const user = userEvent.setup();
-  render(createElement(CreateBookingForm));
-
-  await fillBooking(user);
-  assert.equal((await screen.findByRole("alert")).textContent, message);
-  const book = screen.getByRole<HTMLButtonElement>("button", { name: "Book" });
-  assert.equal(book.disabled, true);
-  await user.click(book);
-  assert.equal(fetchMock.mock.calls.length, 1);
 });

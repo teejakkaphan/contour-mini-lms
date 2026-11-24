@@ -6,6 +6,7 @@ import {
   parseScheduledAt,
   readConsultationBody,
   withConsultationActions,
+  withConsultationProfile,
 } from "../shared";
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
@@ -78,5 +79,5 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   }
   if (!data) return apiError("Consultation not found", 404);
 
-  return Response.json(data);
+  return Response.json(withConsultationProfile(data));
 }
