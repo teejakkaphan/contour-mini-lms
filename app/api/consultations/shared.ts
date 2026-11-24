@@ -1,6 +1,17 @@
 export const consultationFields =
   "id, first_name, last_name, reason, scheduled_at, status";
 
+export function withConsultationActions<T extends { student_id: string }>(
+  { student_id, ...consultation }: T,
+  userId: string,
+  canUpdateOwn: boolean,
+) {
+  return {
+    ...consultation,
+    actions: canUpdateOwn && student_id === userId ? ["reschedule"] : [],
+  };
+}
+
 export async function readConsultationBody(request: Request) {
   const contentType = request.headers.get("content-type")?.split(";")[0];
   if (contentType?.trim().toLowerCase() !== "application/json") return null;

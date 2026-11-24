@@ -4,6 +4,7 @@ import {
   consultationFields,
   parseScheduledAt,
   readConsultationBody,
+  withConsultationActions,
 } from "./shared";
 
 export async function GET() {
@@ -22,10 +23,7 @@ export async function GET() {
   if (error || !permissions) return apiError("Could not load consultations", 500);
 
   const canUpdateOwn = permissions.includes("consultations.update_own");
-  const consultations = data.map(({ student_id, ...consultation }) => ({
-    ...consultation,
-    actions: canUpdateOwn && student_id === session.userId ? ["reschedule"] : [],
-  }));
+  const consultations = data.map((row) => withConsultationActions(row, session.userId, canUpdateOwn));
 
   return Response.json(consultations, { headers: { "Cache-Control": "no-store" } });
 }

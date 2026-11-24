@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test, vi } from "vitest";
 import { GET, POST } from "./route";
-import { PATCH } from "./[id]/route";
+import { GET as GET_BY_ID, PATCH } from "./[id]/route";
 
 const { createClient } = vi.hoisted(() => ({
   createClient: vi.fn<() => Promise<unknown>>(),
@@ -35,7 +35,7 @@ function request(method: "POST" | "PATCH", body: unknown) {
 
 type SupabaseMockOptions = {
   signedIn?: boolean;
-  data?: typeof savedBooking | (typeof savedBooking & { student_id: string })[] | null;
+  data?: (typeof savedBooking & { student_id?: string }) | (typeof savedBooking & { student_id: string })[] | null;
   permissions?: string[];
   permissionError?: boolean;
   error?: { code?: string; message?: string } | null;
@@ -76,6 +76,7 @@ test("all consultation handlers reject signed-out callers before querying", asyn
   const { from } = mockSupabase({ signedIn: false });
   const responses = await Promise.all([
     GET(),
+    GET_BY_ID(new Request(`http://localhost/api/consultations/${id}`), context),
     POST(request("POST", booking)),
     PATCH(request("PATCH", { status: "complete" }), context),
   ]);
@@ -84,6 +85,35 @@ test("all consultation handlers reject signed-out callers before querying", asyn
     assert.equal(response.status, 401);
     assert.deepEqual(await response.json(), { error: "Authentication required" });
   }
+  assert.equal(from.mock.calls.length, 0);
+});
+
+test.each([
+  [userId, ["consultations.update_own"], ["reschedule"]],
+  [userId, ["consultations.read_all"], []],
+  ["another-user", ["consultations.update_own", "consultations.read_all"], []],
+] as const)("GET by ID derives actions from ownership and grants (%s, %j)", async (studentId, permissions, actions) => {
+  const { query } = mockSupabase({ data: { ...savedBooking, student_id: studentId }, permissions: [...permissions] });
+  const response = await GET_BY_ID(new Request(`http://localhost/api/consultations/${id}`), context);
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.deepEqual(query.eq.mock.calls, [["id", id]]);
+  assert.deepEqual(await response.json(), { ...savedBooking, actions });
+});
+
+test("GET by ID returns 404 when RLS hides the booking or it does not exist", async () => {
+  mockSupabase();
+  const response = await GET_BY_ID(new Request(`http://localhost/api/consultations/${id}`), context);
+  assert.equal(response.status, 404);
+});
+
+test("GET by ID rejects malformed IDs without querying Supabase", async () => {
+  const { from } = mockSupabase();
+  const response = await GET_BY_ID(new Request("http://localhost/api/consultations/abc"), {
+    params: Promise.resolve({ id: "abc" }),
+  });
+  assert.equal(response.status, 400);
   assert.equal(from.mock.calls.length, 0);
 });
 

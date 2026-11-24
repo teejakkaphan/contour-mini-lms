@@ -15,18 +15,25 @@ export type Consultation = CreateConsultationInput & {
 export type ConsultationListItem = Consultation & { actions: string[] };
 
 export class ConsultationApiError extends Error {
-  constructor(message: string, public readonly status: number) {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
     super(message);
     this.name = "ConsultationApiError";
   }
 }
 
-async function readResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+async function readResponse<T>(
+  response: Response,
+  fallbackMessage: string,
+): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const message = typeof body?.error === "string" && body.error.trim()
-      ? body.error
-      : fallbackMessage;
+    const message =
+      typeof body?.error === "string" && body.error.trim()
+        ? body.error
+        : fallbackMessage;
     throw new ConsultationApiError(message, response.status);
   }
 
@@ -35,7 +42,21 @@ async function readResponse<T>(response: Response, fallbackMessage: string): Pro
 
 export async function getConsultations(signal?: AbortSignal) {
   const response = await fetch(consultationsUrl, { signal });
-  return readResponse<ConsultationListItem[]>(response, "Could not load consultations.");
+  return readResponse<ConsultationListItem[]>(
+    response,
+    "Could not load consultations.",
+  );
+}
+
+export async function getConsultationById(id: string, signal?: AbortSignal) {
+  const response = await fetch(
+    `${consultationsUrl}/${encodeURIComponent(id)}`,
+    { signal },
+  );
+  return readResponse<ConsultationListItem>(
+    response,
+    "Could not load consultation.",
+  );
 }
 
 export async function postConsultation(input: CreateConsultationInput) {
@@ -48,10 +69,16 @@ export async function postConsultation(input: CreateConsultationInput) {
 }
 
 export async function patchConsultation(id: string, scheduledAt: string) {
-  const response = await fetch(`${consultationsUrl}/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scheduled_at: scheduledAt }),
-  });
-  return readResponse<Consultation>(response, "Could not reschedule consultation.");
+  const response = await fetch(
+    `${consultationsUrl}/${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scheduled_at: scheduledAt }),
+    },
+  );
+  return readResponse<Consultation>(
+    response,
+    "Could not reschedule consultation.",
+  );
 }

@@ -1,11 +1,37 @@
 import { apiError } from "@/lib/api/response";
 import { isConsultationId } from "@/lib/consultations/validation";
-import { getApiSession } from "../../_shared/supabase";
+import { getApiSession, getEffectivePermissions } from "../../_shared/supabase";
 import {
   consultationFields,
   parseScheduledAt,
   readConsultationBody,
+  withConsultationActions,
 } from "../shared";
+
+export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const session = await getApiSession();
+  if (!session) return apiError("Authentication required", 401);
+
+  const { id } = await context.params;
+  if (!isConsultationId(id)) return apiError("Invalid consultation ID", 400);
+
+  const [{ data, error }, permissions] = await Promise.all([
+    session.supabase
+      .from("consultations")
+      .select(`${consultationFields}, student_id`)
+      .eq("id", id)
+      .maybeSingle(),
+    getEffectivePermissions(session.supabase),
+  ]);
+
+  if (error || !permissions) return apiError("Could not load consultation", 500);
+  if (!data) return apiError("Consultation not found", 404);
+
+  return Response.json(
+    withConsultationActions(data, session.userId, permissions.includes("consultations.update_own")),
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await getApiSession();
