@@ -1,6 +1,10 @@
 "use client";
 
 import { type SubmitEvent, useState } from "react";
+import {
+  ConsultationApiError,
+  postConsultation,
+} from "@/lib/api/consultations";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
@@ -12,11 +16,16 @@ function readBookingForm(fields: FormData) {
   const localTime = fields.get("scheduled_at");
 
   if (
-    typeof firstName !== "string" || !firstName.trim() ||
-    typeof lastName !== "string" || !lastName.trim() ||
-    typeof reason !== "string" || !reason.trim() ||
-    typeof localTime !== "string" || !localTime.trim()
-  ) return null;
+    typeof firstName !== "string" ||
+    !firstName.trim() ||
+    typeof lastName !== "string" ||
+    !lastName.trim() ||
+    typeof reason !== "string" ||
+    !reason.trim() ||
+    typeof localTime !== "string" ||
+    !localTime.trim()
+  )
+    return null;
 
   const scheduledAt = new Date(localTime);
   if (!Number.isFinite(scheduledAt.getTime())) return null;
@@ -45,32 +54,23 @@ export function CreateBookingForm() {
     setIsBooked(false);
 
     if (!booking) {
-      setError("Fill in all fields and enter a valid consultation date and time.");
+      setError(
+        "Fill in all fields and enter a valid consultation date and time.",
+      );
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch("/api/consultations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(booking),
-      });
-
-      if (response.status !== 201) {
-        const body = await response.json().catch(() => null);
-        setError(
-          typeof body?.error === "string"
-            ? body.error
-            : "Could not book consultation.",
-        );
-        return;
-      }
-
+      await postConsultation(booking);
       form.reset();
       setIsBooked(true);
-    } catch {
-      setError("Could not book consultation. Please try again.");
+    } catch (error) {
+      setError(
+        error instanceof ConsultationApiError
+          ? error.message
+          : "Could not book consultation. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +80,9 @@ export function CreateBookingForm() {
     <form
       className="flex flex-col gap-2 col-span-full md:col-start-2 md:col-span-3"
       onChange={(event) => {
-        setIsComplete(readBookingForm(new FormData(event.currentTarget)) !== null);
+        setIsComplete(
+          readBookingForm(new FormData(event.currentTarget)) !== null,
+        );
       }}
       onReset={() => setIsComplete(false)}
       onSubmit={handleSubmit}

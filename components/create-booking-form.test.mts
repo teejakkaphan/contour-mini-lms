@@ -63,7 +63,7 @@ test("submits booking details in UTC, disables Book while saving, and resets on 
     scheduled_at: new Date(2026, 10, 25, 10).toISOString(),
   });
 
-  resolve(new Response(null, { status: 201 }));
+  resolve(Response.json({ id: "booking-1", ...JSON.parse(String(options?.body)), status: "incomplete" }, { status: 201 }));
   assert.equal((await screen.findByRole("status")).textContent, "Consultation booked.");
   assert.equal(screen.getByLabelText<HTMLInputElement>("First name").value, "");
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Book" }).disabled, true);

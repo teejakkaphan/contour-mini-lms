@@ -2,15 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-type Consultation = {
-  id: string;
-  first_name: string;
-  last_name: string;
-  reason: string;
-  scheduled_at: string;
-  status: string;
-};
+import {
+  type Consultation,
+  ConsultationApiError,
+  getConsultations,
+} from "@/lib/api/consultations";
 
 type ConsultationList =
   | { state: "loading" }
@@ -35,25 +31,16 @@ export function ConsultationsTable() {
 
     async function loadConsultations() {
       try {
-        const response = await fetch("/api/consultations", {
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-
-        if (response.status === 401) {
-          setList({ state: "signed-out" });
-          return;
-        }
-        if (!response.ok) {
-          setList({ state: "error" });
-          return;
-        }
-
-        const consultations: Consultation[] = await response.json();
+        const consultations = await getConsultations(controller.signal);
         if (!controller.signal.aborted)
           setList({ state: "loaded", consultations });
-      } catch {
-        if (!controller.signal.aborted) setList({ state: "error" });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        if (error instanceof ConsultationApiError && error.status === 401) {
+          setList({ state: "signed-out" });
+        } else {
+          setList({ state: "error" });
+        }
       }
     }
 
