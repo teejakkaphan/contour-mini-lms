@@ -30,7 +30,7 @@ test("shows loading, then renders the consultations returned by the API", async 
     reason: "Math revision",
     scheduled_at: scheduledAt,
     status: "incomplete",
-    actions: ["reschedule", "cancel"],
+    actions: ["consultations.update_own"],
   }, {
     id: "booking-2",
     first_name: "Grace",
@@ -64,7 +64,7 @@ const cancellableBooking = {
   reason: "Math revision",
   scheduled_at: "2026-11-24T21:00:00.000Z",
   status: "incomplete",
-  actions: ["reschedule", "cancel"],
+  actions: ["consultations.update_own"],
 };
 
 test("cancels the selected booking through PATCH and keeps its row visible", async () => {

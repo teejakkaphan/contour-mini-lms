@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatConsultationTime } from "@/lib/consultations/utils";
+import { canManageConsultation, formatConsultationTime } from "@/lib/consultations/utils";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import {
@@ -32,7 +32,7 @@ export function ConsultationsTable() {
       setList((current) => current.state === "loaded" ? {
         ...current,
         consultations: current.consultations.map((row) => row.id === id
-          ? { ...updated, actions: [] }
+          ? { ...row, ...updated }
           : row),
       } : current);
     } catch (error) {
@@ -80,9 +80,7 @@ export function ConsultationsTable() {
   if (list.state === "error")
     return <p role="alert">Could not load consultations.</p>;
   if (list.consultations.length === 0) return <p>No consultations yet.</p>;
-  const shouldShowActionsColumn = list.consultations.some(({ actions }) =>
-    actions.includes("reschedule") || actions.includes("cancel"),
-  );
+  const shouldShowActionsColumn = list.consultations.some(canManageConsultation);
 
   return (
     <div className="overflow-x-auto rounded-md border">
@@ -131,13 +129,11 @@ export function ConsultationsTable() {
               <td className="px-4 py-3 capitalize">{consultation.status}</td>
               {shouldShowActionsColumn && (
                 <td className="px-4 py-3">
-                  <div className="flex flex-wrap gap-2">
-                    {consultation.actions.includes("reschedule") && (
+                  {canManageConsultation(consultation) && (
+                    <div className="flex flex-wrap gap-2">
                       <Button asChild variant="outline" size="sm">
                         <Link href={`/booking/${consultation.id}`}>Reschedule</Link>
                       </Button>
-                    )}
-                    {consultation.actions.includes("cancel") && (
                       <Button
                         type="button"
                         variant="destructive"
@@ -147,8 +143,8 @@ export function ConsultationsTable() {
                       >
                         {cancellingId === consultation.id ? "Cancelling…" : "Cancel"}
                       </Button>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </td>
               )}
             </tr>

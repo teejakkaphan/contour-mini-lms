@@ -14,3 +14,7 @@ export function formatConsultationTime(scheduledAt: string) {
 export function isConsultationId(id: string) {
   return /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id);
 }
+
+export function canManageConsultation({ actions, status }: { actions: string[]; status: string }) {
+  return status !== "cancelled" && actions.includes("consultations.update_own");
+}

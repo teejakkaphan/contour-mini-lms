@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 test("loads the consultation from the API before rendering the form", async () => {
-  const fetchMock = vi.fn().mockResolvedValue(Response.json({ ...consultation, actions: ["reschedule"] }));
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ ...consultation, actions: ["consultations.update_own"] }));
   vi.stubGlobal("fetch", fetchMock);
 
   render(await ReschedulePage({ params }));
@@ -32,6 +32,7 @@ test("loads the consultation from the API before rendering the form", async () =
 
 test.each([
   ["read-only", () => Response.json({ ...consultation, actions: [] })],
+  ["cancelled", () => Response.json({ ...consultation, status: "cancelled", actions: ["consultations.update_own"] })],
   ["missing", () => new Response(null, { status: 404 })],
 ] as const)("hides the form for a %s consultation", async (_label, response) => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response()));

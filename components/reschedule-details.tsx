@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatConsultationTime } from "@/lib/consultations/utils";
+import { canManageConsultation, formatConsultationTime } from "@/lib/consultations/utils";
 import { useEffect, useState } from "react";
 import { RescheduleBookingForm } from "@/components/reschedule-booking-form";
 import { ConsultationApiError, getConsultationById, type ConsultationListItem } from "@/lib/api/consultations";
@@ -20,7 +20,7 @@ export function RescheduleDetails({ consultationId }: { consultationId: string }
       try {
         const consultation = await getConsultationById(consultationId, controller.signal);
         if (controller.signal.aborted) return;
-        setDetails(consultation.actions.includes("reschedule")
+        setDetails(canManageConsultation(consultation)
           ? { state: "ready", consultation }
           : { state: "unavailable" });
       } catch (error) {

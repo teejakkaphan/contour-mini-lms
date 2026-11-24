@@ -1,16 +1,14 @@
 export const consultationFields =
   "id, first_name, last_name, reason, scheduled_at, status";
 
-export function withConsultationActions<T extends { student_id: string; status: string }>(
+export function withConsultationActions<T extends { student_id: string }>(
   { student_id, ...consultation }: T,
   userId: string,
   canUpdateOwn: boolean,
 ) {
   return {
     ...consultation,
-    actions: canUpdateOwn && student_id === userId && consultation.status !== "cancelled"
-      ? ["reschedule", "cancel"]
-      : [],
+    actions: canUpdateOwn && student_id === userId ? ["consultations.update_own"] : [],
   };
 }
 
