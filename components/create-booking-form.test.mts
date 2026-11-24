@@ -13,10 +13,19 @@ afterEach(() => {
 });
 
 const localTime = "2026-11-25T10:00";
+const profile = { first_name: "Ada", last_name: "Lovelace", email: "ada@example.test" };
+
+function mockBookingApi(postBooking?: () => Promise<Response>) {
+  const fetchMock = vi.fn<typeof fetch>(async (url) => {
+    if (url === "/api/me") return Response.json(profile);
+    if (url === "/api/consultations" && postBooking) return postBooking();
+    throw new Error(`Unexpected request to ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
 
 async function fillBooking(user: ReturnType<typeof userEvent.setup>, reason = "Math revision") {
-  await user.type(screen.getByLabelText("First name"), "Ada");
-  await user.type(screen.getByLabelText("Last name"), "Lovelace");
   await user.type(screen.getByLabelText("Reason for consultation"), reason);
   fireEvent.change(screen.getByLabelText("Date and time (local)"), {
     target: { value: localTime },
@@ -25,6 +34,7 @@ async function fillBooking(user: ReturnType<typeof userEvent.setup>, reason = "M
 
 test("Book stays disabled until every required field has a value", async () => {
   const user = userEvent.setup();
+  mockBookingApi();
   render(createElement(CreateBookingForm));
   const button = screen.getByRole<HTMLButtonElement>("button", { name: "Book" });
   assert.equal(button.disabled, true);
@@ -37,22 +47,24 @@ test("Book stays disabled until every required field has a value", async () => {
   await user.type(reason, "Math revision");
   assert.equal(button.disabled, false);
 
-  await user.clear(screen.getByLabelText("First name"));
+  assert.equal(screen.queryByLabelText("First name"), null);
+  assert.equal(screen.queryByLabelText("Last name"), null);
+  await user.clear(reason);
   assert.equal(button.disabled, true);
 });
 
 test("submits booking details in UTC, disables Book while saving, and resets on success", async () => {
   const user = userEvent.setup();
   const { promise, resolve } = Promise.withResolvers<Response>();
-  const fetchMock = vi.fn<typeof fetch>(() => promise);
-  vi.stubGlobal("fetch", fetchMock);
+  const fetchMock = mockBookingApi(() => promise);
   render(createElement(CreateBookingForm));
   await fillBooking(user);
 
   await user.click(screen.getByRole("button", { name: "Book" }));
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Booking…" }).disabled, true);
-  assert.equal(fetchMock.mock.calls.length, 1);
-  const [url, options] = fetchMock.mock.calls[0];
+  assert.equal(fetchMock.mock.calls.length, 2);
+  assert.equal(fetchMock.mock.calls[0][0], "/api/me");
+  const [url, options] = fetchMock.mock.calls[1];
   assert.equal(url, "/api/consultations");
   assert.equal(options?.method, "POST");
   assert.equal(typeof options?.body, "string");
@@ -65,13 +77,13 @@ test("submits booking details in UTC, disables Book while saving, and resets on 
 
   resolve(Response.json({ id: "booking-1", ...JSON.parse(String(options?.body)), status: "incomplete" }, { status: 201 }));
   assert.equal((await screen.findByRole("status")).textContent, "Consultation booked.");
-  assert.equal(screen.getByLabelText<HTMLInputElement>("First name").value, "");
+  assert.equal(screen.getByLabelText<HTMLInputElement>("Reason for consultation").value, "");
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Book" }).disabled, true);
 });
 
 test("shows an API error and preserves fields so the user can retry", async () => {
   const user = userEvent.setup();
-  vi.stubGlobal("fetch", async () =>
+  mockBookingApi(async () =>
     Response.json({ error: "Booking is forbidden" }, { status: 403 }),
   );
   render(createElement(CreateBookingForm));
@@ -79,7 +91,7 @@ test("shows an API error and preserves fields so the user can retry", async () =
 
   await user.click(screen.getByRole("button", { name: "Book" }));
   assert.equal((await screen.findByRole("alert")).textContent, "Booking is forbidden");
-  assert.equal(screen.getByLabelText<HTMLInputElement>("First name").value, "Ada");
+  assert.equal(screen.getByLabelText<HTMLInputElement>("Reason for consultation").value, "Math revision");
   assert.equal(screen.getByLabelText<HTMLInputElement>("Date and time (local)").value, localTime);
   await waitFor(() => {
     assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Book" }).disabled, false);
@@ -88,7 +100,7 @@ test("shows an API error and preserves fields so the user can retry", async () =
 
 test("shows a retry message after a network failure", async () => {
   const user = userEvent.setup();
-  vi.stubGlobal("fetch", async () => {
+  mockBookingApi(async () => {
     throw new Error("Network unavailable");
   });
   render(createElement(CreateBookingForm));
@@ -100,4 +112,21 @@ test("shows a retry message after a network failure", async () => {
     "Could not book consultation. Please try again.",
   );
   assert.equal(screen.getByRole<HTMLButtonElement>("button", { name: "Book" }).disabled, false);
+});
+
+test.each([
+  [Response.json({ ...profile, last_name: null }), "Your account needs a first and last name before you can book."],
+  [new Response(null, { status: 500 }), "Could not load your account details. Reload the page to try again."],
+])("blocks booking when account details are unavailable", async (response, message) => {
+  const fetchMock = vi.fn().mockResolvedValue(response);
+  vi.stubGlobal("fetch", fetchMock);
+  const user = userEvent.setup();
+  render(createElement(CreateBookingForm));
+
+  await fillBooking(user);
+  assert.equal((await screen.findByRole("alert")).textContent, message);
+  const book = screen.getByRole<HTMLButtonElement>("button", { name: "Book" });
+  assert.equal(book.disabled, true);
+  await user.click(book);
+  assert.equal(fetchMock.mock.calls.length, 1);
 });

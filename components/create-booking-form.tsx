@@ -1,6 +1,7 @@
 "use client";
 
-import { type SubmitEvent, useState } from "react";
+import { type SubmitEvent, useEffect, useState } from "react";
+import { getMe } from "@/lib/api/auth";
 import {
   ConsultationApiError,
   postConsultation,
@@ -10,16 +11,10 @@ import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 
 function readBookingForm(fields: FormData) {
-  const firstName = fields.get("first_name");
-  const lastName = fields.get("last_name");
   const reason = fields.get("reason");
   const localTime = fields.get("scheduled_at");
 
   if (
-    typeof firstName !== "string" ||
-    !firstName.trim() ||
-    typeof lastName !== "string" ||
-    !lastName.trim() ||
     typeof reason !== "string" ||
     !reason.trim() ||
     typeof localTime !== "string" ||
@@ -31,22 +26,49 @@ function readBookingForm(fields: FormData) {
   if (!Number.isFinite(scheduledAt.getTime())) return null;
 
   return {
-    first_name: firstName,
-    last_name: lastName,
     reason,
     scheduled_at: scheduledAt.toISOString(),
   };
 }
 
 export function CreateBookingForm() {
+  const [accountName, setAccountName] = useState<{ first_name: string; last_name: string } | null>(null);
+  const [profileError, setProfileError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [error, setError] = useState("");
   const [isBooked, setIsBooked] = useState(false);
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadAccountName() {
+      try {
+        const profile = await getMe(controller.signal);
+        if (controller.signal.aborted) return;
+
+        const firstName = profile.first_name?.trim();
+        const lastName = profile.last_name?.trim();
+        if (!firstName || !lastName) {
+          setProfileError("Your account needs a first and last name before you can book.");
+          return;
+        }
+
+        setAccountName({ first_name: firstName, last_name: lastName });
+      } catch {
+        if (!controller.signal.aborted) {
+          setProfileError("Could not load your account details. Reload the page to try again.");
+        }
+      }
+    }
+
+    void loadAccountName();
+    return () => controller.abort();
+  }, []);
+
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !accountName) return;
 
     const form = event.currentTarget;
     const booking = readBookingForm(new FormData(form));
@@ -62,7 +84,7 @@ export function CreateBookingForm() {
 
     setIsSubmitting(true);
     try {
-      await postConsultation(booking);
+      await postConsultation({ ...accountName, ...booking });
       form.reset();
       setIsBooked(true);
     } catch (error) {
@@ -89,24 +111,6 @@ export function CreateBookingForm() {
     >
       <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="first-name">First name</Label>
-          <Input
-            id="first-name"
-            name="first_name"
-            autoComplete="given-name"
-            required
-          />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="last-name">Last name</Label>
-          <Input
-            id="last-name"
-            name="last_name"
-            autoComplete="family-name"
-            required
-          />
-        </div>
-        <div className="grid gap-2">
           <Label htmlFor="booking-reason">Reason for consultation</Label>
           <Input id="booking-reason" name="reason" required />
         </div>
@@ -119,10 +123,12 @@ export function CreateBookingForm() {
             required
           />
         </div>
-        <Button type="submit" disabled={!isComplete || isSubmitting}>
+        <Button type="submit" disabled={!accountName || !isComplete || isSubmitting}>
           {isSubmitting ? "Booking…" : "Book"}
         </Button>
       </fieldset>
+      {!accountName && !profileError && <output className="text-sm">Loading account details…</output>}
+      {profileError && <p role="alert" className="text-sm text-destructive">{profileError}</p>}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}

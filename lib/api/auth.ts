@@ -1,5 +1,17 @@
 import type { SignupInput } from "@/lib/auth/validation";
 
+type CurrentUser = {
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+};
+
+export async function getMe(signal?: AbortSignal): Promise<CurrentUser> {
+  const response = await fetch("/api/me", { signal, cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load account details.");
+  return response.json();
+}
+
 export async function getMyPermissions(signal?: AbortSignal): Promise<{ permissions: string[] }> {
   const response = await fetch("/api/me/permissions", { signal, cache: "no-store" });
   if (!response.ok) throw new Error("Could not load permissions.");
