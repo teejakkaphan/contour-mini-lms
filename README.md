@@ -1,118 +1,67 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+## Local setup
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+Need Node.js 24, pnpm 12, the Supabase CLI, and a running Docker-compatible container runtime. See the [pnpm installation guide](https://pnpm.io/installation) for setup instructions.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
-
-## Features
-
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
-
-## Demo
-
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
-
-## Deploy to Vercel
-
-Vercel deployment will guide you through creating a Supabase account and project.
-
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
-
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
-
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
-
-## Clone and run locally
-
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
-
-2. Create a Next.js app using the Supabase Starter template npx command
+1. From the repository root, install dependencies and start Supabase.
 
    ```bash
-   npx create-next-app --example with-supabase with-supabase-app
+   pnpm install --frozen-lockfile
+   supabase start
    ```
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+   You can also start Supabase with `pnpx supabase start`.
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+2. Copy `.env.example` to `.env.local`. Set `NEXT_PUBLIC_SUPABASE_URL` to the local **API URL** and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the local **publishable key** shown by `supabase status`.
 
-3. Use `cd` to change into the app's directory
+3. Run `pnpm dev` and open `http://127.0.0.1:3000`. This origin matches the configured Supabase Auth site URL.
 
-   ```bash
-   cd with-supabase-app
-   ```
+Public signup creates a **student** account automatically. Local email confirmation is disabled, so a new student can book immediately after signup.
 
-4. Rename `.env.example` to `.env.local` and update the following:
+To sign in as an admin, use the credentials below.
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-```
+| Field | Value |
+| --- | --- |
+| Email | `admin@admin.com` |
+| Password | `123456` |
 
-> [!NOTE]
-> This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-> Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-> See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+A fresh local stack seeds the admin account from [`supabase/seed.sql`](supabase/seed.sql). The seeded credentials are for local demo data only.
 
-Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+## Implementation summary
 
-5. You can now run the Next.js local development server:
+- **Authentication and profile.**
+  - The signup form uses a Next.js API to validate input and create an account through Supabase Auth. Login and logout use the Supabase browser client. `GET /api/consultations` API uses the signed-in user’s session, and PostgreSQL row-level security enforces which bookings they can read or update.
+- **Student workflow.**
+  - The dashboard shows the student’s consultations using `GET /api/consultations`. The booking form collects the reason and appointment time, and the API reads the student’s name from their profile.
+  - Students can reschedule or cancel eligible bookings from the table using `PATCH /api/consultations/:id`. The reschedule page uses `GET /api/consultations/:id` to display the current booking details.
+- **Admin workflow.**
+  - The same dashboard shows read-only admins consultations across all students. The dashboard uses `GET /api/me/permissions` to determine whether to show the booking button. Read-only admins do not see it.
+- **API client.**
+  - I put client-side calls to the Next.js API in a shared client under `lib/api`. This keeps success and error handling consistent and reduces repeated response type definitions.
+- **API endpoints.**
+  - The API endpoints connect the frontend to the database.
+  - `POST /api/auth/signup` validates signup details, creates a Supabase Auth account, and saves the user’s name.
+  - `GET /api/me` returns the signed-in user’s first name, last name, and email.
+  - `GET /api/me/permissions` returns the signed-in user’s effective permission keys.
+  - `GET /api/consultations` lists visible consultations with the students’ current profile names and includes the update permission on eligible rows.
+  - `POST /api/consultations` accepts a reason and scheduled time. It creates a consultation owned by the signed-in user.
+  - `GET /api/consultations/:id` returns one visible consultation with its student’s current profile name and row-level permissions.
+  - `PATCH /api/consultations/:id` updates a consultation’s scheduled time, status, or both. Cancellation sets the status to `cancelled`.
+- **Database design.**
+  - Supabase Auth manages accounts in `auth.users`. An Auth trigger syncs the account’s first and last names to `public.profiles`. Each consultation references its owner’s profile through `student_id` and stores its reason, scheduled time, and status. Consultation reads join to the profile to show the current name.
+  - The private `user_roles` table links accounts to roles, and `roles_permission` links roles to permissions. A user can hold multiple roles, and roles can share permissions. The `public.current_user_permissions` view exposes the signed-in user’s combined grants to the API. The schema, grants, and access policies are versioned in [`supabase/migrations`](supabase/migrations).
+  - We have Profile table due to Supabase manages `auth.users` and keeps it outside the Data API. And for security concern, this table will exposes just the first and last names needed for visible bookings, while Supabase continues to manage account data.
+- **Test.**
+  - I used TDD for this assignment. Run `pnpm test` to run the Vitest suite, which includes unit and React component tests.
 
-   ```bash
-   npm run dev
-   ```
+## Justifications and assumptions
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
-
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
-
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
-
-## Supabase TypeScript types
-
-After applying local migrations, regenerate the types used by the Supabase clients and include the generated file with your schema changes. Run this from the repo root while local Supabase is running:
-
-```bash
-supabase gen types typescript --schema public > lib/supabase/database.types.ts
-```
-
-## Feedback and issues
-
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
-
-## More Supabase examples
-
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+- **Authorization belongs at the database boundary.**
+  - Role assignments and grants live in private tables. Postgres row-level security checks the signed-in user’s permissions and booking ownership on each query. Profile reads are limited to the caller’s own profile and profiles associated with bookings they can already see. The frontend uses permission data to show controls, and the database enforces access when a request is submitted.
+- **Students book for themselves.**
+  - The creation handler gets the booking owner’s UUID from the verified session. Students enter their names at signup, and profile name edits are reflected on existing bookings.
+- **Times use the browser’s local timezone.**
+  - The app submits an ISO timestamp and stores it in PostgreSQL as `timestamptz`. The dashboard and reschedule views convert it to local time for display.
+- **Cancellation keeps the booking in history.**
+  - Cancellation changes the status to `cancelled`, and the dashboard hides editing controls for cancelled rows. New bookings start as `incomplete`. The PATCH API accepts `complete`, `incomplete`, and `cancelled` updates, and the dashboard currently displays completion status without a toggle.
+- **Scheduling is a simple booking request.**
+  - Tutor assignment, calendar availability, and collision checks are outside the assessment requirements.
