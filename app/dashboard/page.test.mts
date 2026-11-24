@@ -3,10 +3,10 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { afterEach, expect, test, vi } from "vitest";
-import { ConsultationsTable } from "./consultations-table";
+import { ConsultationsTable } from "@/components/consultations-table";
 import DashboardPage from "./page";
 
-vi.mock("./consultations-table", () => ({ ConsultationsTable: vi.fn(() => null) }));
+vi.mock("@/components/consultations-table", () => ({ ConsultationsTable: vi.fn(() => null) }));
 
 afterEach(() => {
   cleanup();
